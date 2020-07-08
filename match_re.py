@@ -1,25 +1,24 @@
 import os, re
 
-def _check(flag,value,spec,ref):
+def _check(value,spec,ref):
    refspec = ref[spec]
    if refspec is None:
-      return flag
+      return True
    elif type(refspec) is list:
-      if not value in refspec:
-         return False
-      else:
-         return flag
+      for pattern in refspec:
+         if re.fullmatch(pattern,value):
+            return True
    else:
-      if not value==refspec:
-         return False
-      else:
-         return flag
+      if re.fullmatch(refspec,value):
+         return True
+   ## Otherwise
+   return False
 
 def check_rematchgroup(match,specs,ref):
-   flag = True
    for i, spec in enumerate(specs):
-      flag = _check(flag,match.group(i+1),spec,ref)
-   return flag
+      if not _check(match.group(i+1),spec,ref):
+         return False
+   return True
 
 def match_path_pplog(pplogfile,regex,specs,ref,suffix,groupspec=[1]):
    returndict = {}

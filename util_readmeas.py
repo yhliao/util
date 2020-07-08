@@ -2,11 +2,11 @@ import csv
 import numpy as np
 
 ## Simple function parsing measurement csv file into data dict
-def parse_meascsv(measfilename):
+def parse_meascsv(measfilename,dbg=False):
     try:
        with open (measfilename,'r') as csvfile:
            csvreader = csv.reader(csvfile)
-           for row in csvreader:
+           for n, row in enumerate(csvreader):
                if row[0] == 'DataName':
                    DataName = [t.strip(' ') for t in row[1:]]
                    DataValue = [[] for dn in DataName]
@@ -14,23 +14,43 @@ def parse_meascsv(measfilename):
                    assert not DataValue is None, \
                        ("DataValue should not appear before DataName")
                    for datalist, value in zip(DataValue,row[1:]):
+                       value = value.strip(' ')
                        try:
-                          datalist.append(float(value.strip(' ')))
+                          datalist.append(float(value))
                        except:
-                          print ("Error Encountered")
-                          print (DataName)
-                          print (DataValue)
-                          print (value)
-                          raise ValueError
+                          if dbg:
+                             print ("parse_meascsv: Warning")
+                             print ("string value is :", value)
+                             print ("The entire row (on line {0}) is:".format(n), row)
+                          if value == "":
+                             datalist.append(None)
+                          else:
+                             raise ValueError
            DataDict = {dn: np.array(dv) for dn, dv in zip(DataName,DataValue)}
     except Exception as inst:
        print ("Error parsing file" + measfilename)
+       input ("Press Any Key to edit the file:")
        import subprocess
        subprocess.call(["vim",measfilename])
        raise inst 
 
     return DataDict
 
+def split_data(datadict,indexfield,verbose=False):
+   indexdata = datadict[indexfield]
+   index = np.unique(indexdata)
+   roundedindex = np.round(index,decimals=5)
+   if np.any(index != roundedindex) and verbose:
+      print ("split_data: warning...", 
+            index, "rounded to", roundedindex, 
+            "for easy key lookup")
+   returndict = {}
+   for ridx, idx in zip(roundedindex,index):
+      selectidx  = (idx == indexdata)
+      selectdict = dict([(key,value[selectidx]) 
+                     for key, value in datadict.items()])
+      returndict[ridx] = selectdict
+   return returndict
 ## meassheet is a xlrd.sheet object containing one measurement set
 def parse_meassheet(meassheet,skiprows=0):
     DataDict = {}
