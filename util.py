@@ -9,12 +9,12 @@ import matplotlib
 from scipy.optimize import fsolve
 from simIOtools.csv_writer import write_column
 
-def read_and_concat(filenames,variables):
+def read_and_concat(filenames,variables,read_silence=True):
    Var_data = [[] for i in variables]
    for n, fn in enumerate(filenames):
       #print ("reading",fn)
       rd = readPLT()
-      rd.read_plt(fn)
+      rd.read_plt(fn,read_silence)
       for vardata, var in zip(Var_data,variables):
          vardata.append(rd.retrieve(var))
    return [np.concatenate(arr) for arr in Var_data]
@@ -28,8 +28,9 @@ def merge(Idx_data,Var_data):
       arr_return.append( vardata[keepidx][sort_idx] )
    return arr_return
 
-def read_and_merge(filenames,index,variables,backupname=None):
-   data = read_and_concat(filenames,[index]+variables)
+def read_and_merge(filenames,index,variables,read_silence=True,
+                  backupname=None):
+   data = read_and_concat(filenames,[index]+variables,read_silence)
    merged_data = merge(data[0],data[1:])
    if not backupname is None:
       colnames = [[n.replace(',','_')] for n in [index]+variables]
