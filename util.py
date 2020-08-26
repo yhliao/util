@@ -6,6 +6,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import rc, gridspec
 import matplotlib
+from scipy.optimize import fsolve
 from simIOtools.csv_writer import write_column
 
 def read_and_concat(filenames,variables):
@@ -33,7 +34,7 @@ def read_and_merge(filenames,index,variables,backupname=None):
    if not backupname is None:
       colnames = [[n.replace(',','_')] for n in [index]+variables]
       write_column(backupname,colnames,merged_data,force=False)
-   return merged_data 
+   return merged_data
 
 ## Split according to the uniqueness of index entries
 def read_and_split(filename,index,variables):
@@ -73,7 +74,7 @@ axislabelfont   = {'labelweight':'bold',
                    'titleweight':'bold' }
 legendlabelfont = {'fontsize':'medium'}
 
-def plot_init(figsize,nrow,ncol, TITLE=None, subplotidx=False):
+def plot_init(figsize,nrow,ncol, TITLE=None, subplotidx=False,xp=-.2,startidx='a',yp=0.95):
 
    #matplotlib.use('Agg')
    rc('axes',linewidth=1.5,**axislabelfont)
@@ -83,12 +84,8 @@ def plot_init(figsize,nrow,ncol, TITLE=None, subplotidx=False):
    gs   = gridspec.GridSpec(nrow,ncol,figure=fig)
    AX   = [fig.add_subplot(g) for g in gs]
 
-   xp = -0.1
-   yp = 1.05
    if TITLE is None:
       TITLE = [""] * nrow * ncol
-      xp = -0.2
-      yp = 0.95
    if len(AX)==1:
       AX[0].set_title(TITLE[0],
                       fontsize=14,x=xp ,y=yp,
@@ -96,7 +93,7 @@ def plot_init(figsize,nrow,ncol, TITLE=None, subplotidx=False):
    else:
       for n, (ax, tit) in enumerate(zip(AX,TITLE)):
          if subplotidx:
-            index = chr(ord('a') + n)
+            index = chr(ord(startidx) + n)
             ax.set_title("({0})".format(index) + " " + tit,
                          fontsize=14,x=xp ,y=yp,
                          ha="left",weight='bold')
@@ -143,12 +140,22 @@ class plotFE_QV:
    def set_FEpar(self,value,order):
       idx = len(self.FEparam) - (order +1 ) /2
       self.FEparam[int(idx)] = value
+   def get_FEpar(self,order):
+      idx = len(self.FEparam) - (order +1 ) /2
+      return self.FEparam[int(idx)]
 
+   def find_P(self,Q):
+      def Q0(P):
+         E = self._calc_E(P)
+         QDE = E * epsilon0 * self.epBG
+         Qtot = QDE + P
+         return Qtot-Q
+      return fsolve(Q0,0)[0]
    def set_Pr(self,Pr,ordermax,keeporder=[]):
 
       parlen = int((ordermax+1)/2)
       keeporder = np.array(keeporder)
-      FEparam = np.flip([np.flip(self.FEparam,axis=0)[i] 
+      FEparam = np.flip([np.flip(self.FEparam,axis=0)[i]
                            if i in (keeporder-1)/2 else 0
                            for i in range(parlen)],axis=0)
       self.FEparam = FEparam
@@ -163,7 +170,7 @@ class plotFE_QV:
       Porders = np.array([P**i for i in self.prefactor-1])
       E = np.matmul(self.prefactor * self.FEparam, Porders)
       return E
-      
+
    def set_stack(self,EOT_IL,ax):
       self.CIL = epsilon0 * 3.9 / EOT_IL
       ax.set_xlabel("Gate Charge $Q_G$ ($\mu$C/cm$^2$)")
@@ -191,7 +198,7 @@ class plotFE_QV:
       else:
          self.ax_QV.plot(E/1E6,1E6*Qtot,**kwargs)
 
-      NCFE = np.diff(Qtot) / np.diff(VFE) 
+      NCFE = np.diff(Qtot) / np.diff(VFE)
       if not self.ax_CQ is None:
          self.ax_CQ.plot(1E6*(Qtot[1:]+Qtot[:-1])/2,1E6*NCFE,
                          **kwargs)
